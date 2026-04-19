@@ -1,0 +1,214 @@
+<!DOCTYPE html><html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Ecosistema Evolutivo 2D PRO</title>
+<style>
+body{margin:0;display:flex;background:#0b0f14;color:#fff;font-family:Arial;overflow:hidden}
+canvas{background:#05070a}
+#panel{width:340px;padding:12px;background:#111827;overflow:auto;height:100vh}
+button,input{width:100%;margin:4px 0;padding:6px}
+.stat{font-size:12px;margin:2px 0}
+</style>
+</head>
+<body>
+<canvas id="c" width="720" height="720"></canvas>
+<div id="panel">
+<h3>🧬 Ecosistema PRO</h3>
+<button onclick="toggleGraph()">📊 Gráfica ON/OFF</button>
+<button onclick="startEpidemic()">🦠 Iniciar epidemia</button>
+<input id="dnaInput" placeholder="ADN ejemplo: S1-V2-P0-A1" />
+<button onclick="applyDNA()">🧬 Aplicar ADN a seleccionado</button>
+<div id="info">Selecciona entidad</div>
+<canvas id="graph" width="320" height="200"></canvas>
+</div><script>
+const c=document.getElementById('c');
+const ctx=c.getContext('2d');
+const g=document.getElementById('graph');
+const gtx=g.getContext('2d');
+
+const W=c.width,H=c.height;
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const rint=(a,b)=>Math.floor(rand(a,b));
+
+let entities=[];
+let lakes=[];
+let time=0;
+let day=0;
+let selected=null;
+let graphOn=true;
+let history={plant:[],herb:[],carn:[],fish:[]};
+
+// LAGOS
+for(let i=0;i<6;i++){
+ lakes.push({x:rint(100,W-100),y:rint(100,H-100),r:rint(60,140)});
+}
+
+const isWater=(x,y)=>lakes.some(l=>Math.hypot(x-l.x,y-l.y)<l.r);
+
+// ADN PARSER
+function parseDNA(dna){
+ let p={speed:1,vision:60,poison:0,agro:0};
+ dna.split('-').forEach(pv=>{
+  let k=pv[0]; let v=+pv[1];
+  if(k==='S')p.speed=v;
+  if(k==='V')p.vision=v*30;
+  if(k==='P')p.poison=v/2;
+  if(k==='A')p.agro=v;
+ });
+ return p;
+}
+
+function spawn(type,x,y,parent=null){
+ let base=parent||{speed:1,vision:60,poison:0};
+ return {
+  id:Math.random(),
+  type,x,y,
+  vx:rand(-1,1),vy:rand(-1,1),
+  energy:50,age:0,
+  speed:base.speed+rand(-0.2,0.2),
+  vision:base.vision+rand(-5,5),
+  poison:base.poison+rand(-0.1,0.1),
+  infected:false,
+  immune:false,
+  dna:`S${Math.round(base.speed)}-V${Math.round(base.vision/30)}-P${Math.round(base.poison)}`
+ };
+}
+
+// INIT
+for(let i=0;i<120;i++)entities.push(spawn('plant',rint(0,W),rint(0,H)));
+for(let i=0;i<40;i++)entities.push(spawn('herb',rint(0,W),rint(0,H)));
+for(let i=0;i<20;i++)entities.push(spawn('carn',rint(0,W),rint(0,H)));
+for(let i=0;i<25;i++)entities.push(spawn('fish',rint(0,W),rint(0,H)));
+
+canvas.onclick=e=>{
+ let x=e.offsetX,y=e.offsetY;
+ selected=entities.find(a=>Math.hypot(a.x-x,a.y-y)<12);
+};
+
+function startEpidemic(){
+ let p=entities[rint(0,entities.length)];
+ if(p) p.infected=true;
+}
+
+function applyDNA(){
+ if(!selected)return;
+ let d=document.getElementById('dnaInput').value;
+ let p=parseDNA(d);
+ selected.speed=p.speed;
+ selected.vision=p.vision;
+ selected.poison=p.poison;
+}
+
+function update(){
+ time++;
+ if(time%800===0)day++;
+ let night=Math.sin(time*0.004)<0;
+
+ // infección
+ entities.forEach(e=>{
+  if(e.infected && !e.immune){
+   e.energy-=0.3;
+   entities.forEach(o=>{
+    if(o!==e && Math.hypot(o.x-e.x,o.y-e.y)<25 && !o.immune){
+     if(Math.random()<0.02)o.infected=true;
+    }
+   });
+  }
+ });
+
+ entities.forEach(e=>{
+  e.age++;
+  if(e.age>1200||e.energy<=0)e.dead=true;
+
+  e.vx+=rand(-0.2,0.2);
+  e.vy+=rand(-0.2,0.2);
+
+  let sp=e.speed*(night?0.7:1.2);
+
+  e.x+=e.vx*sp;
+  e.y+=e.vy*sp;
+
+  if(e.x<0||e.x>W)e.vx*=-1;
+  if(e.y<0||e.y>H)e.vy*=-1;
+
+  let near=entities.filter(o=>o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<30);
+
+  if(e.type==='plant'&&Math.random()<0.01)
+   entities.push(spawn('plant',e.x+rand(-10,10),e.y+rand(-10,10),e));
+
+  if(e.type==='herb'){
+   near.forEach(o=>{if(o.type==='plant'){o.dead=true;e.energy+=20;}});
+   if(e.energy>80&&Math.random()<0.02)
+    entities.push(spawn('herb',e.x,e.y,e));
+  }
+
+  if(e.type==='carn'){
+   near.forEach(o=>{if(o.type==='herb'){o.dead=true;e.energy+=40;}});
+  }
+
+  if(e.poison>0.5){
+   near.forEach(o=>o.energy-=0.2);
+  }
+ });
+
+ entities=entities.filter(e=>!e.dead);
+
+ // historial
+ ['plant','herb','carn','fish'].forEach(t=>{
+  history[t].push(entities.filter(e=>e.type===t).length);
+  if(history[t].length>50)history[t].shift();
+ });
+}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let night=Math.sin(time*0.004)<0;
+ ctx.fillStyle=night?'rgba(10,10,40,0.3)':'rgba(255,255,200,0.08)';
+ ctx.fillRect(0,0,W,H);
+
+ lakes.forEach(l=>{
+  ctx.beginPath();
+  ctx.fillStyle="rgba(0,120,255,0.25)";
+  ctx.arc(l.x,l.y,l.r,0,Math.PI*2);
+  ctx.fill();
+ });
+
+ entities.forEach(e=>{
+  ctx.fillStyle=e.infected?'purple':
+   e.type==='plant'?'green':
+   e.type==='herb'?'white':
+   e.type==='carn'?'red':'cyan';
+  ctx.fillText(e.type[0].toUpperCase(),e.x,e.y);
+ });
+
+ if(selected){
+  document.getElementById('info').innerHTML=
+  `Tipo:${selected.type}<br>
+   Energía:${selected.energy.toFixed(1)}<br>
+   ADN:${selected.dna}<br>
+   Infectado:${selected.infected}`;
+ }
+
+ drawGraph();
+}
+
+function drawGraph(){
+ if(!graphOn)return;
+ gtx.clearRect(0,0,320,200);
+ let keys=Object.keys(history);
+ keys.forEach((k,i)=>{
+  gtx.beginPath();
+  gtx.strokeStyle=['green','white','red','cyan'][i];
+  history[k].forEach((v,j)=>{
+   gtx.lineTo(j*6,200-v);
+  });
+  gtx.stroke();
+ });
+}
+
+function toggleGraph(){graphOn=!graphOn;}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script></body>
+</html>
