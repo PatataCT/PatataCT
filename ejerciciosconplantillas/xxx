@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Ecosistema Evolutivo 2D</title>
+<style>
+  body { margin: 0; background:#111; color:white; font-family: Arial; display:flex; }
+  canvas { background:#000; display:block; }
+  #panel { width:300px; padding:10px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="700" height="700"></canvas>
+<div id="panel">
+<h3>Entidad</h3>
+<div id="info">Click en una criatura</div>
+<h3>Tiempo</h3>
+<div id="time"></div>
+</div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const W=canvas.width,H=canvas.height;const rand=(a,b)=>Math.random()*(b-a)+a; const rint=(a,b)=>Math.floor(rand(a,b));
+
+// mundo let entities=[]; let day=0; let time=0;
+
+// lagos let lakes=[]; for(let i=0;i<4;i++){ lakes.push({x:rint(100,600),y:rint(100,600),r:rint(60,120)}); }
+
+function inWater(x,y){ return lakes.some(l=>Math.hypot(x-l.x,y-l.y)<l.r); }
+
+// entidad function spawn(type,x,y){ return { id:Math.random(), type, x,y, vx:rand(-1,1), vy:rand(-1,1), energy:50, age:0, poison:Math.random()<0.2?rand(0,1):0, speed:rand(0.5,2), vision:rand(40,120) }; }
+
+// inicial for(let i=0;i<80;i++)entities.push(spawn('plant',rint(0,W),rint(0,H))); for(let i=0;i<25;i++)entities.push(spawn('herb',rint(0,W),rint(0,H))); for(let i=0;i<12;i++)entities.push(spawn('carn',rint(0,W),rint(0,H))); for(let i=0;i<15;i++)entities.push(spawn('fish',rint(0,W),rint(0,H)));
+
+let selected=null;
+
+canvas.onclick=(e)=>{ const x=e.offsetX,y=e.offsetY; selected=entities.find(e=>Math.hypot(e.x-x,e.y-y)<10); };
+
+function update(){ time+=1; if(time%600===0)day++;
+
+entities.forEach(e=>{ e.age++;
+
+// muerte
+if(e.age>1000 || e.energy<=0){e.dead=true;return;}
+
+// ciclo día noche
+let night=Math.sin(time*0.005)<0;
+let speedMod=night?0.6:1.2;
+
+// movimiento
+e.vx+=rand(-0.2,0.2);
+e.vy+=rand(-0.2,0.2);
+
+let sp=e.speed*speedMod;
+
+e.x+=e.vx*sp;
+e.y+=e.vy*sp;
+
+// bordes
+if(e.x<0||e.x>W)e.vx*=-1;
+if(e.y<0||e.y>H)e.vy*=-1;
+
+// agua frena tierra
+if(inWater(e.x,e.y) && e.type!=='fish'){
+  e.speed*=0.8;
+}
+
+let nearby=entities.filter(o=>o!==e && Math.hypot(o.x-e.x,o.y-e.y)<30);
+
+// PLANTAS
+if(e.type==='plant' && Math.random()<0.01){
+  entities.push(spawn('plant',e.x+rand(-20,20),e.y+rand(-20,20)));
+}
+
+// HERBÍVOROS
+if(e.type==='herb'){
+  nearby.forEach(o=>{
+    if(o.type==='plant'){
+      o.dead=true;
+      e.energy+=20;
+    }
+  });
+
+  // reproducción
+  if(e.energy>80 && Math.random()<0.01){
+    entities.push({...spawn('herb',e.x,e.y),
+      speed:e.speed+rand(-0.3,0.3),
+      vision:e.vision+rand(-10,10)
+    });
+    e.energy-=30;
+  }
+}
+
+// CARNÍVOROS
+if(e.type==='carn'){
+  nearby.forEach(o=>{
+    if(o.type==='herb'){
+      o.dead=true;
+      e.energy+=40;
+    }
+  });
+}
+
+// PECES
+if(e.type==='fish'){
+  if(!inWater(e.x,e.y))e.energy-=2;
+}
+
+// veneno
+nearby.forEach(o=>{
+  if(o.poison>0.5 && e.type==='herb'){
+    e.energy-=0.5;
+  }
+});
+
+});
+
+entities=entities.filter(e=>!e.dead); }
+
+function draw(){ ctx.clearRect(0,0,W,H);
+
+// día noche overlay let night=Math.sin(time*0.005)<0; ctx.fillStyle=night?'rgba(0,0,50,0.3)':'rgba(255,255,200,0.1)'; ctx.fillRect(0,0,W,H);
+
+// lagos lakes.forEach(l=>{ ctx.beginPath(); ctx.fillStyle='rgba(0,100,255,0.3)'; ctx.arc(l.x,l.y,l.r,0,Math.PI*2); ctx.fill(); });
+
+entities.forEach(e=>{ ctx.fillStyle= e.type==='plant'?'lime': e.type==='herb'?'white': e.type==='carn'?'red': 'cyan';
+
+ctx.fillText(e.type[0].toUpperCase(),e.x,e.y);
+
+});
+
+if(selected){ document.getElementById('info').innerHTML= Tipo: ${selected.type}<br> Energía: ${selected.energy.toFixed(1)}<br> Edad: ${selected.age}<br> Veneno: ${selected.poison.toFixed(2)}<br> Velocidad: ${selected.speed.toFixed(2)}; }
+
+document.getElementById('time').innerText= Día: ${day} ${night?'NOCHE':'DÍA'}; }
+
+function loop(){update();draw();requestAnimationFrame(loop);} loop(); </script>
+
+</body>
+</html>
