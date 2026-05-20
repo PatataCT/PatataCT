@@ -6,10 +6,10 @@ Web educativa sobre los animales gigantes de la Edad de Hielo. **HTML/CSS/JS pur
 
 ```
 .
-├── index.html          # Portada (Plantilla A)
-├── mamuts.html         # jjj Mamuts Gigantes (Plantilla B)
-├── depredadores.html   # jjj Depredadores del Hielo (Plantilla B)
-├── megafauna.html      # jjj Megafauna Extinta (Plantilla B)
+├── indexx.html          # Portada (Plantilla A)
+├── mamuts.html         # Mamuts (Plantilla B)
+├── depredadores.html   # Depredadores del Hielo (Plantilla B)
+├── megafauna.html      # Megafauna Extinta (Plantilla B)
 ├── extincion.html      # jjj La Gran Extinción (Plantilla B)
 ├── plantilla.html      # Documentación de plantillas
 ├── styles.css          # Todos los estilos (paleta, animaciones, responsive)
@@ -30,7 +30,7 @@ Abre `index.html` con doble clic. No necesita servidor.
 ## Características
 
 - 6 páginas separadas (no one-page).
-- 2 plantillas distintas (`index.html` y la usada por los 4 capítulos).
+- 2 plantillas distintas (`indexx.html` y la usada por los 4 capítulos).
 - Enlaces principales con prefijo `jjj`.
 - Enlace `plantilla` al pie de cada página → `plantilla.html`.
 - Diseño cinematográfico oscuro (paleta hielo + naranja).
